@@ -35,6 +35,9 @@ pub struct Vault {
 
     /// Optional: Timestamp when the sale ended
     pub sale_ended_at: Option<i64>,
+
+    /// Creator's payment account for receiving proceeds from sales
+    pub creator_payment_account: Pubkey,
 }
 
 impl Vault {
@@ -48,7 +51,8 @@ impl Vault {
         8 +  // fractions_sold
         1 +  // is_sale_active
         8 +  // created_at
-        9; // sale_ended_at (Option<i64>)
+        9 +  // sale_ended_at (Option<i64>)
+        32; // creator_payment_account
 
     /// Check if all fractions have been sold
     pub fn is_fully_sold(&self) -> bool {

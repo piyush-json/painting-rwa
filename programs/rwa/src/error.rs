@@ -89,4 +89,19 @@ pub enum RwaError {
 
     #[msg("KYC risk level too high")]
     KycRiskLevelTooHigh,
+
+    #[msg("Invalid NFT mint - token account does not hold the expected NFT")]
+    InvalidNftMint,
+
+    #[msg("Owner mismatch - token account owner does not match creator")]
+    OwnerMismatch,
+
+    #[msg("Not an NFT - token account must contain exactly 1 token")]
+    NotAnNft,
+
+    #[msg("Incorrect payment account - must match the creator's stored payment account")]
+    IncorrectPaymentAccount,
+
+    #[msg("Invalid fractional mint - token account mint does not match expected fractional token mint")]
+    InvalidFractionalMint,
 }

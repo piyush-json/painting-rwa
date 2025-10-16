@@ -48,6 +48,7 @@ pub fn fractionalize(
     vault.price_per_fraction = price_per_fraction;
     vault.fractions_sold = 0;
     vault.is_sale_active = true;
+    vault.creator_payment_account = ctx.accounts.creator_payment_account.key();
 
     // Transfer NFT from creator to vault using CPI
     transfer(
@@ -185,14 +186,13 @@ pub fn redeem(ctx: Context<Redeem>) -> Result<()> {
     let seeds = &[b"vault", vault.original_nft_mint.as_ref(), &[vault_bump]];
 
     burn(
-        CpiContext::new_with_signer(
+        CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
             Burn {
                 mint: ctx.accounts.fractional_token_mint.to_account_info(),
                 from: ctx.accounts.redeemer_fractional_account.to_account_info(),
-                authority: vault.to_account_info(),
+                authority: ctx.accounts.redeemer.to_account_info(),
             },
-            &[seeds],
         ),
         vault.total_fractions,
     )?;

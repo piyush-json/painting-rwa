@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::associated_token::AssociatedToken;
 
 use crate::kyc::SimpleKycAccount;
 use crate::state::{PlatformConfig, Vault};
@@ -34,8 +35,11 @@ pub struct Fractionalize<'info> {
     pub creator: Signer<'info>,
 
     /// The NFT mint being fractionalized
-    /// CHECK: This is validated by the constraint on creator_nft_token_account
-    pub original_nft_mint: UncheckedAccount<'info>,
+    #[account(
+        constraint = original_nft_mint.supply == 1 @ crate::error::RwaError::NotAnNft,
+        constraint = original_nft_mint.decimals == 0 @ crate::error::RwaError::NotAnNft
+    )]
+    pub original_nft_mint: Account<'info, Mint>,
 
     /// Vault account that will store the NFT and manage fractional tokens
     #[account(
@@ -59,28 +63,45 @@ pub struct Fractionalize<'info> {
 
     /// Fractional token account for the vault
     #[account(
-        init,
+        init_if_needed,
         payer = creator,
-        token::mint = fractional_token_mint,
-        token::authority = vault,
+        associated_token::mint = fractional_token_mint,
+        associated_token::authority = vault,
     )]
     pub vault_fractional_account: Account<'info, TokenAccount>,
 
     /// Creator's NFT token account
-    #[account(mut)]
+    #[account(
+        mut,
+        // 1. Ensure this token account holds the correct NFT mint
+        constraint = creator_nft_account.mint == original_nft_mint.key() @ crate::error::RwaError::InvalidNftMint,
+        // 2. Ensure the creator calling the function is the owner of this token account
+        constraint = creator_nft_account.owner == creator.key() @ crate::error::RwaError::OwnerMismatch,
+        // 3. Ensure it's a valid NFT (supply of 1)
+        constraint = creator_nft_account.amount == 1 @ crate::error::RwaError::NotAnNft
+    )]
     pub creator_nft_account: Account<'info, TokenAccount>,
 
     /// Vault's NFT token account
     #[account(
-        init,
+        init_if_needed,
         payer = creator,
-        token::mint = original_nft_mint,
-        token::authority = vault,
+        associated_token::mint = original_nft_mint,
+        associated_token::authority = vault,
     )]
     pub vault_nft_account: Account<'info, TokenAccount>,
 
+    /// Creator's payment account for receiving proceeds from sales
+    #[account(
+        constraint = creator_payment_account.owner == creator.key() @ crate::error::RwaError::OwnerMismatch
+    )]
+    pub creator_payment_account: Account<'info, TokenAccount>,
+
     /// Token program for standard SPL tokens
     pub token_program: Program<'info, Token>,
+
+    /// Associated token program for creating ATAs
+    pub associated_token_program: Program<'info, AssociatedToken>,
 
     /// System program for account creation
     pub system_program: Program<'info, System>,
@@ -109,8 +130,8 @@ pub struct BuyFractions<'info> {
     #[account(
         init_if_needed,
         payer = buyer,
-        token::mint = fractional_token_mint,
-        token::authority = buyer,
+        associated_token::mint = fractional_token_mint,
+        associated_token::authority = buyer,
     )]
     pub buyer_fractional_account: Account<'info, TokenAccount>,
 
@@ -123,7 +144,10 @@ pub struct BuyFractions<'info> {
     pub buyer_payment_account: Account<'info, TokenAccount>,
 
     /// Creator's payment token account for receiving proceeds
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = creator_payment_account.key() == vault.creator_payment_account @ crate::error::RwaError::IncorrectPaymentAccount
+    )]
     pub creator_payment_account: Account<'info, TokenAccount>,
 
     /// Buyer's KYC account for compliance verification
@@ -139,6 +163,9 @@ pub struct BuyFractions<'info> {
 
     /// Token program for standard SPL tokens
     pub token_program: Program<'info, Token>,
+
+    /// Associated token program for creating ATAs
+    pub associated_token_program: Program<'info, AssociatedToken>,
 
     /// System program for account creation
     pub system_program: Program<'info, System>,
@@ -164,7 +191,11 @@ pub struct Redeem<'info> {
     pub fractional_token_mint: Account<'info, Mint>,
 
     /// Redeemer's fractional token account
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = redeemer_fractional_account.mint == fractional_token_mint.key() @ crate::error::RwaError::InvalidFractionalMint,
+        constraint = redeemer_fractional_account.owner == redeemer.key() @ crate::error::RwaError::OwnerMismatch
+    )]
     pub redeemer_fractional_account: Account<'info, TokenAccount>,
 
     /// Vault's NFT token account
@@ -175,13 +206,23 @@ pub struct Redeem<'info> {
     #[account(
         init_if_needed,
         payer = redeemer,
-        token::mint = original_nft_mint,
-        token::authority = redeemer,
+        associated_token::mint = original_nft_mint,
+        associated_token::authority = redeemer,
     )]
     pub redeemer_nft_account: Account<'info, TokenAccount>,
 
+    /// Redeemer's KYC account for compliance verification
+    #[account(
+        constraint = kyc_account.user == redeemer.key(),
+        constraint = kyc_account.is_valid() @ crate::error::RwaError::KycNotVerified
+    )]
+    pub kyc_account: Account<'info, SimpleKycAccount>,
+
     /// Token program for standard SPL tokens
     pub token_program: Program<'info, Token>,
+
+    /// Associated token program for creating ATAs
+    pub associated_token_program: Program<'info, AssociatedToken>,
 
     /// System program for account creation
     pub system_program: Program<'info, System>,

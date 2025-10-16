@@ -38,9 +38,72 @@ declare_id!("Guhyo3fAg6Qys962ngVbsidvzEWsBiGmZ3XYMyo73MfE");
 pub mod rwa {
     use super::*;
 
-    // Core platform instructions
-    pub use instructions::*;
+    /// Initialize the platform with default configuration
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        instructions::initialize(ctx)
+    }
 
-    // Simple KYC instructions for hackathon demos
-    pub use kyc::*;
+    /// Fractionalize an NFT into tradeable shares (SIMPLIFIED FOR HACKATHON)
+    ///
+    /// This instruction takes an NFT and creates fractional ownership tokens.
+    /// Uses standard SPL Token for simplicity and speed.
+    pub fn fractionalize(
+        ctx: Context<Fractionalize>,
+        total_fractions: u64,
+        price_per_fraction: u64,
+    ) -> Result<()> {
+        instructions::fractionalize(ctx, total_fractions, price_per_fraction)
+    }
+
+    /// Buy fractional tokens (SIMPLIFIED FOR HACKATHON)
+    ///
+    /// This instruction allows KYC-verified users to purchase fractional tokens.
+    /// Uses standard SPL Token transfers for simplicity.
+    pub fn buy_fractions(ctx: Context<BuyFractions>, num_fractions: u64) -> Result<()> {
+        instructions::buy_fractions(ctx, num_fractions)
+    }
+
+    /// Redeem NFT by burning all fractional tokens (SIMPLIFIED FOR HACKATHON)
+    ///
+    /// This instruction allows a user who owns all fractional tokens to redeem the original NFT.
+    pub fn redeem(ctx: Context<Redeem>) -> Result<()> {
+        instructions::redeem(ctx)
+    }
+
+    /// Register a user for KYC verification (hackathon-friendly)
+    ///
+    /// This instruction creates a simple KYC account for a user with minimal requirements.
+    /// Perfect for hackathon demos where you want to show the flow without barriers.
+    pub fn register_kyc(ctx: Context<RegisterKyc>) -> Result<()> {
+        instructions::register_kyc(ctx)
+    }
+
+    /// Verify a user's KYC status (admin only)
+    ///
+    /// This instruction allows platform admins to manually verify users.
+    /// This is the main verification method for hackathon demos.
+    pub fn verify_kyc(
+        ctx: Context<VerifyKyc>,
+        verification_method: VerificationMethod,
+        verification_level: u8,
+    ) -> Result<()> {
+        instructions::verify_kyc(ctx, verification_method, verification_level)
+    }
+
+    /// Update platform configuration (admin only)
+    pub fn update_platform_config(
+        ctx: Context<UpdatePlatformConfig>,
+        platform_fee_numerator: u16,
+        platform_fee_denominator: u16,
+        min_investment_amount: u64,
+        max_investment_amount: u64,
+    ) -> Result<()> {
+        instructions::update_platform_config(
+            ctx,
+            platform_fee_numerator,
+            platform_fee_denominator,
+            min_investment_amount,
+            max_investment_amount,
+        )
+    }
 }
